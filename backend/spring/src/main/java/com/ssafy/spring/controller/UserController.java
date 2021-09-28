@@ -2,8 +2,11 @@ package com.ssafy.spring.controller;
 
 import com.ssafy.spring.common.auth.UserDetailsImpl;
 import com.ssafy.spring.common.util.JwtTokenProvider;
+import com.ssafy.spring.model.dto.UserCategoryDTO;
 import com.ssafy.spring.model.dto.UserDTO;
+import com.ssafy.spring.model.entity.Category;
 import com.ssafy.spring.model.entity.User;
+import com.ssafy.spring.service.UserCategoryService;
 import com.ssafy.spring.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,7 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import javax.xml.ws.Response;
+import java.util.Arrays;
 
 @RestController
 @RequiredArgsConstructor
@@ -23,6 +26,7 @@ import javax.xml.ws.Response;
 public class UserController {
 
     private final UserService userService;
+    private final UserCategoryService userCategoryService;
 
     @PostMapping("/signin")
     @Operation(summary = "로그인", description = "아이디와 패스워드를 입력하여 로그인한다.", responses = {
@@ -156,5 +160,23 @@ public class UserController {
         }
 
         return new ResponseEntity<>(new UserDTO(userService.getUserById(userId)), HttpStatus.OK);
+    }
+
+    @PostMapping("/category")
+    @Operation(summary = "선호 카테고리 등록", description = "회원의 선호 카테고리를 등록한다.", responses = {
+            @ApiResponse(responseCode = "200", description = "성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "403", description = "토큰 없음"),
+            @ApiResponse(responseCode = "409", description = "해당 회원 정보 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 오류")})
+    public ResponseEntity<Void> registerCategory(@Parameter(hidden = true) Authentication authentication,
+                                                 @Parameter(name = "등록할 선호 카테고리들", required = true) @RequestBody UserCategoryDTO.RegisterCategoryPostReq req) {
+        ResponseEntity<UserDetailsImpl> userDetailsResponseEntity = JwtTokenProvider.judgeAuthorization(authentication);
+        if(userDetailsResponseEntity.getBody() == null) {
+            return new ResponseEntity<>(null, userDetailsResponseEntity.getStatusCode());
+        }
+
+        User user = userService.getUserByUserId(userDetailsResponseEntity.getBody().getUsername());
+        return new ResponseEntity<>(userCategoryService.save(userDetailsResponseEntity.getBody().getUsername(), req.getCategories()));
     }
 }
